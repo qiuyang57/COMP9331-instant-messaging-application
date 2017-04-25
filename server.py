@@ -33,11 +33,15 @@ class ClientThread(threading.Thread):
         self.message = None
         self.addr = addr
         self.username = None
-        self.reply = []
+        self.replies = []
         self.exit = False
 
     def timeout_reset(self):
         timeout_dict[self] = time()
+
+    def exit_enable(self):
+        self.exit = True
+        threads.remove(self)
 
     def login(self):
         while self.login_require_flag:
@@ -51,8 +55,10 @@ class ClientThread(threading.Thread):
                 reply = "block"
                 server_blockdict[self.addr[0]]=time()
                 print(server_blockdict)
+                self.exit_enable()
             if self.message == "":
                 print("connection lost")
+                self.exit_enable()
                 break
             print(word[1], credentials.keys())
             if word[1] in credentials.keys():
@@ -60,8 +66,9 @@ class ClientThread(threading.Thread):
                     reply = "welcome"
                     self.login_require_flag = False
                     self.username = word[1]
-            self.sock.send(reply.encode())
+            self.replies.append(reply.encode())
             self.login_remain_times -= 1
+
 
     def run(self):
         self.timeout_reset()
@@ -70,7 +77,7 @@ class ClientThread(threading.Thread):
             self.message = self.sock.recv(1024).decode()
             if self.message!="":
                 self.timeout_reset()
-            self.sock.send(self.message.encode())
+            self.replies.append(self.message.encode())
 
 
 def check_timeout():
@@ -85,6 +92,7 @@ def check_timeout():
     for thread in threadtoClose:
         del timeout_dict[thread]
         thread.exit = True
+        threads.remove(thread)
 
 
 def update_serverblockdict():
@@ -125,6 +133,9 @@ while True:
     if cur_time-prev_time>1:
         update_serverblockdict()
         prev_time = cur_time
+    for thread in threads:
+        if len(thread.replies):
+            thread.sock.send(thread.replies.pop(0))
     # print(threading.enumerate())
 connectionSocket.close()
 for t in threads:

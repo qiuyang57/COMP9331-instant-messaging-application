@@ -21,7 +21,7 @@ class ReceiverThread(threading.Thread):
         while True:
             self.reply = self.sock.recv(1024).decode()
             if self.reply == "timeout":
-                print("exit")
+                print("Times out! Exit the program.")
                 sys.exit()
             print(self.reply)
 
@@ -51,15 +51,18 @@ def login():
             print("Too many tries! You have been blocked for a while.")
             clientSocket.close()
             sys.exit()
-        print("Wrong username or password! Please retry.")
+        if answer_login == "wrong":
+            print("Wrong username or password! Please retry.")
 
 login()
 thread_rec = ReceiverThread(clientSocket)
 thread_rec.start()
 while True:
     message = input()
-    clientSocket.send(message.encode())
-
+    if threading.active_count()>1:
+        clientSocket.send(message.encode())
+    else:
+        sys.exit()
 
 
 
