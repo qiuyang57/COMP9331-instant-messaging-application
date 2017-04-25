@@ -2,6 +2,21 @@ from time import time
 from socket import *
 import threading
 
+TIMEOUT = 5
+BLOCK_DURATION = 10
+
+class ConnectionThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+
+    def run(self):
+        while True:
+            connectionSocket, addr = serverSocket.accept()
+            newthread = ClientThread(connectionSocket)
+            newthread.start()
+            threads.append(newthread)
+
+
 class ClientThread(threading.Thread):
     def __init__(self, sock):
         threading.Thread.__init__(self)
@@ -11,9 +26,13 @@ class ClientThread(threading.Thread):
         self.login_remain_times = 2
         self.message = ""
 
+    def timeout_reset(self):
+        timeout_dict[self.sock] = time()
+
+
     def login(self):
         while self.login_require_flag:
-            self.message = connectionSocket.recv(1024).decode()
+            self.message = self.sock.recv(1024).decode()
             word = self.message.split()
             print(word)
             reply = "wrong"
@@ -22,14 +41,14 @@ class ClientThread(threading.Thread):
                 break
             if self.login_remain_times == 0:
                 reply = "block"
-                server_blocklist.append([addr[0], time()])
+                # server_blocklist.append([addr[0], time()])
                 print(server_blocklist)
             print(word[1], credentials.keys())
             if word[1] in credentials.keys():
                 if credentials[word[1]] == word[2]:
                     reply = "welcome"
                     self.login_require_flag = False
-            connectionSocket.send(reply.encode())
+            self.sock.send(reply.encode())
             self.login_remain_times -= 1
 
     def run(self):
@@ -39,6 +58,11 @@ class ClientThread(threading.Thread):
             self.message=self.sock.recv(1024).decode()
             self.sock.send(self.message.encode())
 
+def check_timeout():
+    for sock in timeout_dict:
+        time_now = time()
+        if time_now-timeout_dict[sock]>TIMEOUT:
+            sock.send("timeout".encode())
 
 
 serverPort = 12000
@@ -53,14 +77,13 @@ serverSocket.listen(5)
 print("The server is ready to receive")
 server_blocklist =[]
 threads=[]
-
-
-
+timeout_dict = {}
+con_thread = ConnectionThread()
+con_thread.start()
 while True:
-    connectionSocket, addr = serverSocket.accept()
-    newthread = ClientThread(connectionSocket)
-    newthread.start()
-    threads.append(newthread)
+    pass
+    # check_timeout()
+    print(threads)
     # print(addr)
 connectionSocket.close()
 for t in threads:

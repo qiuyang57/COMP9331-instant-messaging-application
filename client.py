@@ -29,8 +29,6 @@ while True:
         sys.exit()
     print("Wrong username or password! Please retry.")
 
-
-
 def rec(sock):
     while True:
         reply = sock.recv(1024).decode()
