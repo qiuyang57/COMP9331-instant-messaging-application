@@ -2,7 +2,7 @@ from time import time
 from socket import *
 import threading
 
-TIMEOUT = 100
+TIMEOUT = 10
 BLOCK_DURATION = 15
 
 
@@ -30,16 +30,20 @@ class ClientThread(threading.Thread):
         # self.init_time = init_time
         self.login_require_flag = True
         self.login_remain_times = 2
-        self.message = ""
+        self.message = None
         self.addr = addr
+        self.username = None
+        self.reply = None
+        self.exit = False
 
     def timeout_reset(self):
-        timeout_dict[self.sock] = time()
+        timeout_dict[self] = time()
 
     def login(self):
         while self.login_require_flag:
             self.message = self.sock.recv(1024).decode()
-            self.timeout_reset()
+            if self.sock in timeout_dict:
+                self.timeout_reset()
             word = self.message.split()
             print(word)
             reply = "wrong"
@@ -55,28 +59,32 @@ class ClientThread(threading.Thread):
                 if credentials[word[1]] == word[2]:
                     reply = "welcome"
                     self.login_require_flag = False
+                    self.username = word[1]
             self.sock.send(reply.encode())
             self.login_remain_times -= 1
 
     def run(self):
         self.timeout_reset()
         self.login()
-        while True:
+        while not self.exit:
             self.message = self.sock.recv(1024).decode()
-            self.timeout_reset()
+            if self.message!="":
+                self.timeout_reset()
             self.sock.send(self.message.encode())
 
 
 def check_timeout():
-    socktoClose = []
-    for sock in timeout_dict:
+    threadtoClose = []
+    # print(timeout_dict)
+    for thread in timeout_dict:
         time_now = time()
-        if time_now - timeout_dict[sock] > TIMEOUT:
-            sock.send("timeout".encode())
-            socktoClose.append(sock)
-    for sock in socktoClose:
-        del timeout_dict[sock]
-        sock.close()
+        if time_now - timeout_dict[thread] > TIMEOUT:
+            thread.sock.send("timeout".encode())
+            threadtoClose.append(thread)
+    # print(threadtoClose)
+    for thread in threadtoClose:
+        del timeout_dict[thread]
+        thread.exit = True
 
 
 def update_serverblockdict():
@@ -117,7 +125,7 @@ while True:
     if cur_time-prev_time>1:
         update_serverblockdict()
         prev_time = cur_time
-    # print(threads)
+    print(threading.enumerate())
 connectionSocket.close()
 for t in threads:
     t.join()
