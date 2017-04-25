@@ -29,22 +29,23 @@ while True:
         sys.exit()
     print("Wrong username or password! Please retry.")
 
-class ReceiverThread(threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-
-    def run(self):
-        while True:
-            reply = clientSocket.recv(1024)
-            print(reply)
 
 
+def rec(sock):
+    while True:
+        reply = sock.recv(1024).decode()
+        print(reply)
+        if reply == "timeout":
+            print("exit")
+            sys.exit(0)
+        print(reply)
 
-thread_rec = ReceiverThread()
+thread_rec = threading.Thread(target=rec,args=(clientSocket,))
+thread_rec.start()
 while True:
     message = input()
     clientSocket.send(message.encode())
-    thread_rec.run()
+
 
 
 
