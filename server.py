@@ -10,7 +10,6 @@ class ConnectionThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
 
-
     def run(self):
         while True:
             connectionSocket, addr = serverSocket.accept()
@@ -48,6 +47,7 @@ class ClientThread(threading.Thread):
         self.login_require_flag = False
         self.username = word[1]
         login_dict[self.username] = self
+        login_record[self.username] = time()
         for thread in threads:
             if thread != self:
                 reply = "online " + self.username
@@ -63,7 +63,7 @@ class ClientThread(threading.Thread):
             reply = "wrong"
             if self.login_remain_times == 0:
                 reply = "block"
-                server_blockdict[self.addr[0]]=time()
+                server_blockdict[self.addr[0]] = time()
                 print(server_blockdict)
                 self.exit_enable()
             if self.message == "":
@@ -82,8 +82,31 @@ class ClientThread(threading.Thread):
             self.login_remain_times -= 1
 
     def command_parse(self):
-        if self.message == "logout":
-            self.exit_enable()
+        message_list = self.message.split()
+        if len(message_list) == 1:
+            if self.message == "logout":
+                self.exit_enable()
+            if self.message == "whoelse":
+                reply = "whoelse"
+                for thread in threads:
+                    if thread != self:
+                        reply += " " + thread.username
+                self.replies.append(reply.encode())
+
+        else:
+            if message_list[0] == "whoelsesince":
+                time_since = message_list[1]
+                for username in login_record:
+                    reply = "whoelsesince"
+                    if not username == self.username:
+                        if time() - login_record[username] <= time_since:
+                            reply += " " + username
+                        self.replies.append(reply.encode())
+            if message_list[0] == "broadcast":
+                reply = " ".join(message_list[1:])
+                for thread in threads:
+                    if thread != self:
+                        thread.replies.append(reply.encode())
         self.replies.append(self.message.encode())
 
     def run(self):
@@ -91,7 +114,7 @@ class ClientThread(threading.Thread):
         self.login()
         while not self.exit:
             self.message = self.sock.recv(1024).decode()
-            if self.message!="":
+            if self.message != "":
                 self.timeout_reset()
             self.command_parse()
         if (not self.login_require_flag) and self.exit:
@@ -99,7 +122,6 @@ class ClientThread(threading.Thread):
                 if thread != self:
                     reply = "offline " + self.username
                     thread.replies.append(reply.encode())
-
 
 
 def check_timeout():
@@ -128,7 +150,6 @@ def update_serverblockdict():
         del server_blockdict[ip]
 
 
-
 serverPort = 12000
 serverSocket = socket(AF_INET, SOCK_STREAM)
 serverSocket.bind(('', serverPort))
@@ -145,22 +166,22 @@ server_blockdict = {}
 threads = []
 sockets = []
 timeout_dict = {}
-
+login_record = {}
 
 con_thread = ConnectionThread()
 con_thread.start()
-prev_time= time()
+prev_time = time()
 while True:
     # print(sockets)
     check_timeout()
     cur_time = time()
-    if cur_time-prev_time>1:
+    if cur_time - prev_time > 1:
         update_serverblockdict()
         prev_time = cur_time
     for thread in threads:
         if len(thread.replies):
             thread.sock.send(thread.replies.pop(0))
-    # print(threading.enumerate())
+            # print(threading.enumerate())
 connectionSocket.close()
 for t in threads:
     t.join()
