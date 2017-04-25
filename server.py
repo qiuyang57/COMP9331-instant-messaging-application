@@ -2,7 +2,7 @@ from time import time
 from socket import *
 import threading
 
-TIMEOUT = 10
+TIMEOUT = 100
 BLOCK_DURATION = 15
 
 
@@ -42,6 +42,16 @@ class ClientThread(threading.Thread):
     def exit_enable(self):
         self.exit = True
         threads.remove(self)
+        login_dict[self.username] = None
+
+    def init_after_login(self):
+        self.login_require_flag = False
+        self.username = word[1]
+        login_dict[self.username] = self
+        for thread in threads:
+            if thread != self:
+                reply = "online " + self.username
+                thread.replies.append(reply.encode())
 
     def login(self):
         while self.login_require_flag:
@@ -63,12 +73,18 @@ class ClientThread(threading.Thread):
             print(word[1], credentials.keys())
             if word[1] in credentials.keys():
                 if credentials[word[1]] == word[2]:
-                    reply = "welcome"
-                    self.login_require_flag = False
-                    self.username = word[1]
+                    if login_dict[word[1]]:
+                        reply = "occupied"
+                    else:
+                        reply = "welcome"
+                        self.init_after_login()
             self.replies.append(reply.encode())
             self.login_remain_times -= 1
 
+    def command_parse(self):
+        if self.message == "logout":
+            self.exit_enable()
+        self.replies.append(self.message.encode())
 
     def run(self):
         self.timeout_reset()
@@ -77,7 +93,13 @@ class ClientThread(threading.Thread):
             self.message = self.sock.recv(1024).decode()
             if self.message!="":
                 self.timeout_reset()
-            self.replies.append(self.message.encode())
+            self.command_parse()
+        if (not self.login_require_flag) and self.exit:
+            for thread in threads:
+                if thread != self:
+                    reply = "offline " + self.username
+                    thread.replies.append(reply.encode())
+
 
 
 def check_timeout():
@@ -93,6 +115,7 @@ def check_timeout():
         del timeout_dict[thread]
         thread.exit = True
         threads.remove(thread)
+        login_dict[thread.username] = None
 
 
 def update_serverblockdict():
@@ -114,6 +137,7 @@ with open("credentials.txt") as file:
     for line in file:
         word = line.split()
         credentials[word[0]] = word[1]
+login_dict = {username: None for username in credentials}
 serverSocket.listen(5)
 print("The server is ready to receive")
 

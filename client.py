@@ -53,15 +53,21 @@ def login():
             sys.exit()
         if answer_login == "wrong":
             print("Wrong username or password! Please retry.")
+        if answer_login == "occupied":
+            print("This username has already logged in! Please retry.")
+
 
 login()
 thread_rec = ReceiverThread(clientSocket)
 thread_rec.start()
 while True:
     message = input()
+
     if threading.active_count()>1:
         clientSocket.send(message.encode())
     else:
+        sys.exit()
+    if message == "logout":
         sys.exit()
 
 
