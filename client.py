@@ -23,6 +23,9 @@ while True:
     print(answer_login)
     if answer_login == "welcome":
         break
+    if answer_login == "timeout":
+        print("Times out! Exit the program.")
+        sys.exit()
     if answer_login == "block":
         print("Too many tries! You have been blocked for a while.")
         clientSocket.close()
@@ -35,7 +38,7 @@ def rec(sock):
         print(reply)
         if reply == "timeout":
             print("exit")
-            sys.exit(0)
+            sys.exit()
         print(reply)
 
 thread_rec = threading.Thread(target=rec,args=(clientSocket,))

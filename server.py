@@ -2,8 +2,9 @@ from time import time
 from socket import *
 import threading
 
-TIMEOUT = 5
+TIMEOUT = 100
 BLOCK_DURATION = 10
+
 
 class ConnectionThread(threading.Thread):
     def __init__(self):
@@ -15,6 +16,7 @@ class ConnectionThread(threading.Thread):
             newthread = ClientThread(connectionSocket)
             newthread.start()
             threads.append(newthread)
+            sockets.append(connectionSocket)
 
 
 class ClientThread(threading.Thread):
@@ -29,10 +31,10 @@ class ClientThread(threading.Thread):
     def timeout_reset(self):
         timeout_dict[self.sock] = time()
 
-
     def login(self):
         while self.login_require_flag:
             self.message = self.sock.recv(1024).decode()
+            self.timeout_reset()
             word = self.message.split()
             print(word)
             reply = "wrong"
@@ -52,17 +54,25 @@ class ClientThread(threading.Thread):
             self.login_remain_times -= 1
 
     def run(self):
-        # connectionSocket, addr = self.sock.accept()
+        self.timeout_reset()
         self.login()
         while True:
-            self.message=self.sock.recv(1024).decode()
+            self.message = self.sock.recv(1024).decode()
+            self.timeout_reset()
             self.sock.send(self.message.encode())
 
+
 def check_timeout():
+    socktoclose = []
     for sock in timeout_dict:
         time_now = time()
-        if time_now-timeout_dict[sock]>TIMEOUT:
+        if time_now - timeout_dict[sock] > TIMEOUT:
             sock.send("timeout".encode())
+            socktoclose.append(sock)
+    for sock in socktoclose:
+        del timeout_dict[sock]
+        sock.close()
+
 
 
 serverPort = 12000
@@ -75,17 +85,17 @@ with open("credentials.txt") as file:
         credentials[word[0]] = word[1]
 serverSocket.listen(5)
 print("The server is ready to receive")
-server_blocklist =[]
-threads=[]
+server_blocklist = []
+threads = []
+sockets = []
 timeout_dict = {}
 con_thread = ConnectionThread()
 con_thread.start()
 while True:
-    pass
-    # check_timeout()
-    print(threads)
+    # print(sockets)
+    check_timeout()
+    # print(threads)
     # print(addr)
 connectionSocket.close()
 for t in threads:
     t.join()
-
