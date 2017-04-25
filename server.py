@@ -33,7 +33,7 @@ class ClientThread(threading.Thread):
         self.message = None
         self.addr = addr
         self.username = None
-        self.reply = None
+        self.reply = []
         self.exit = False
 
     def timeout_reset(self):
@@ -125,7 +125,7 @@ while True:
     if cur_time-prev_time>1:
         update_serverblockdict()
         prev_time = cur_time
-    print(threading.enumerate())
+    # print(threading.enumerate())
 connectionSocket.close()
 for t in threads:
     t.join()
