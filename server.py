@@ -2,7 +2,7 @@ from time import time
 from socket import *
 import threading
 
-TIMEOUT = 10
+TIMEOUT = 100
 BLOCK_DURATION = 15
 
 
@@ -18,7 +18,7 @@ class ConnectionThread(threading.Thread):
                 newthread.start()
                 threads.append(newthread)
             else:
-                connectionSocket.send("block".encode())
+                connectionSocket.send("blockip".encode())
 
 
 class ClientThread(threading.Thread):
@@ -32,6 +32,7 @@ class ClientThread(threading.Thread):
         self.addr = addr
         self.username = None
         self.exit = False
+        self.blocked_user = []
 
     def timeout_reset(self):
         timeout_dict[self] = time()
@@ -61,15 +62,17 @@ class ClientThread(threading.Thread):
     def login(self):
         while self.login_require_flag:
             self.message = self.sock.recv(1024).decode()
-            if self in timeout_dict:
-                self.timeout_reset()
+            username_flag = False
+            self.timeout_reset()
             word = self.message.split()
             print(word)
-            reply = "wrong"
+            reply = "false"
             if self.login_remain_times == 0:
                 reply = "block"
-                server_blockdict[self.addr[0]] = time()
-                print(server_blockdict)
+                ip_blockdict[self.addr[0]] = time()
+                if username_flag:
+                    username_blockdict[word[1]] = time()
+                print(ip_blockdict)
                 self.exit_enable()
             if self.message == "":
                 print("connection lost")
@@ -78,11 +81,17 @@ class ClientThread(threading.Thread):
             # print(word[1], credentials.keys())
             if word[1] in credentials.keys():
                 if credentials[word[1]] == word[2]:
+                    print(login_dict)
                     if isinstance(login_dict[word[1]],threading.Thread):
                         reply = "occupied"
                     else:
                         reply = "welcome"
                         self.init_after_login(word)
+                else:
+                    reply = "falsep"
+                    username_flag = True
+            if word[1] in username_blockdict:
+                reply = "blockun"
             self.sock.send(reply.encode())
             self.login_remain_times -= 1
 
@@ -142,15 +151,16 @@ class ClientThread(threading.Thread):
     def run(self):
         self.timeout_reset()
         self.login()
-        self.show_presence()
-        self.send_stored_message()
-        while not self.exit:
-            self.message = self.sock.recv(1024).decode()
-            print(self.message)
-            self.timeout_reset()
-            self.command_parse_and_send()
-        if (not self.login_require_flag) and self.exit:
-            self.thread_exit()
+        if not self.login_require_flag:
+            self.show_presence()
+            self.send_stored_message()
+            while not self.exit:
+                self.message = self.sock.recv(1024).decode()
+                print(self.message)
+                self.timeout_reset()
+                self.command_parse_and_send()
+            if self.exit:
+                self.thread_exit()
 
 def check_timeout():
     threadtoClose = []
@@ -168,7 +178,7 @@ def check_timeout():
 
 
 
-def update_serverblockdict():
+def update_ipblockdict():
     iptoRemove = []
     for ip in ip_blockdict.copy():
         time_now = time()
@@ -191,6 +201,7 @@ serverSocket.listen(5)
 print("The server is ready to receive")
 
 ip_blockdict = {}
+username_blockdict = {}
 threads = []
 timeout_dict = {}
 login_record = {}
@@ -203,7 +214,7 @@ while True:
     check_timeout()
     cur_time = time()
     if cur_time - prev_time > 1:
-        update_serverblockdict()
+        update_ipblockdict()
         prev_time = cur_time
     # print(threading.enumerate())
 connectionSocket.close()

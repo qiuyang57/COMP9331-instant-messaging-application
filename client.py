@@ -62,8 +62,9 @@ class ReceiverThread(threading.Thread):
 
 def login():
     login_flag = True
+    username_flag = True
     while login_flag:
-        while True:
+        while username_flag:
             username = input("username:")
             if username != "":
                 break
@@ -73,6 +74,7 @@ def login():
             if password != "":
                 break
             print("Empty password. Please try again.")
+
         clientSocket.send(('login ' + username + ' ' + password).encode())
         answer_login = clientSocket.recv(1024).decode()
         print(answer_login)
@@ -83,11 +85,22 @@ def login():
             clientSocket.close()
             sys.exit()
         if answer_login == "block":
-            print("Too many tries! You have been blocked for a while.")
+            print("Invalid Username and Password. Your IP been blocked. Please try again later")
             clientSocket.close()
             sys.exit()
-        if answer_login == "wrong":
-            print("Wrong username or password! Please retry.")
+        if answer_login == "blockun":
+            print("Invalid Username. Your account been blocked. Please try again later")
+            clientSocket.close()
+            sys.exit()
+        if answer_login == "blockip":
+            print("Your IP is blocked due to multiple login failures. Please try again later")
+            clientSocket.close()
+            sys.exit()
+        if answer_login == "falsep":
+            username_flag = False
+            print("Invalid Password. Please try again")
+        if answer_login == "false":
+            print("Invalid Username and Password. Please try again")
         if answer_login == "occupied":
             print("This username has already logged in! Please retry.")
 
