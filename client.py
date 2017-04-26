@@ -30,20 +30,26 @@ class ReceiverThread(threading.Thread):
                 exit_flag.append(1)
                 self.exit = True
             if self.reply == "invalidtime":
-                print("The time you request is not valid.")
+                print("Error. Invalid time")
             if self.reply == "inviliduser":
-                print("The user you message is not valid.")
+                print("Error. Invalid user")
         if len(reply_list)>1:
+            if reply_list[0] == "online":
+                print(reply_list[1]+" logged in")
+            if reply_list[0] == "offline":
+                print(reply_list[1]+" logged out")
             if reply_list[0] == "whoelse":
                 print("Current online user:")
                 for user in reply_list[1:]:
                     print(user)
             if reply_list[0] == "whoelsesince":
-                print("User logged in within "+reply_list[1]+" seconds:")
                 for user in reply_list[2:]:
                     print(user)
             if reply_list[0] == "message":
                 print("{}: {}".format(reply_list[1], " ".join(reply_list[2:])))
+            if reply_list[0] == "store":
+                print("{} is offline now. Your message has been stored.".format(reply_list[1]))
+
 
     def run(self):
         while not self.exit:
@@ -51,6 +57,7 @@ class ReceiverThread(threading.Thread):
             print(self.reply)
             self.message_parse()
         if self.exit:
+            print("close")
             clientSocket.close()
 
 def login():

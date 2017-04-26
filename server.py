@@ -13,11 +13,10 @@ class ConnectionThread(threading.Thread):
     def run(self):
         while True:
             connectionSocket, addr = serverSocket.accept()
-            if addr[0] not in server_blockdict:
+            if addr[0] not in ip_blockdict:
                 newthread = ClientThread(connectionSocket, addr)
                 newthread.start()
                 threads.append(newthread)
-                sockets.append(connectionSocket)
             else:
                 connectionSocket.send("block".encode())
 
@@ -44,6 +43,8 @@ class ClientThread(threading.Thread):
         self.login_require_flag = False
         self.username = word[1]
         login_record[self.username] = time()
+
+    def show_presence(self):
         for key in login_dict:
             thread = login_dict[key]
             if isinstance(thread, threading.Thread):
@@ -51,9 +52,10 @@ class ClientThread(threading.Thread):
                 reply = "online " + self.username
                 thread.sock.send(reply.encode())
         # print(login_dict[self.username])
-            else:
-                for reply in login_dict[self.username]:
-                    self.sock.send(reply.encode())
+
+    def send_stored_message(self):
+        for reply in login_dict[self.username]:
+            self.sock.send(reply.encode())
         login_dict[self.username] = self
 
     def login(self):
@@ -76,7 +78,7 @@ class ClientThread(threading.Thread):
             # print(word[1], credentials.keys())
             if word[1] in credentials.keys():
                 if credentials[word[1]] == word[2]:
-                    if login_dict[word[1]]:
+                    if isinstance(login_dict[word[1]],threading.Thread):
                         reply = "occupied"
                     else:
                         reply = "welcome"
@@ -110,7 +112,7 @@ class ClientThread(threading.Thread):
                 except ValueError:
                     self.sock.send("invalidtime".encode())
             if message_list[0] == "broadcast":
-                reply = " ".join(message_list)
+                reply = "message "+self.username+" "+" ".join(message_list[1:])
                 for thread in threads:
                     if thread != self:
                         thread.sock.send(reply.encode())
@@ -128,6 +130,7 @@ class ClientThread(threading.Thread):
                 else:
                     self.sock.send("inviliduser".encode())
 
+
     def thread_exit(self):
         login_dict[self.username] = []
         threads.remove(self)
@@ -139,6 +142,8 @@ class ClientThread(threading.Thread):
     def run(self):
         self.timeout_reset()
         self.login()
+        self.show_presence()
+        self.send_stored_message()
         while not self.exit:
             self.message = self.sock.recv(1024).decode()
             print(self.message)
@@ -165,12 +170,12 @@ def check_timeout():
 
 def update_serverblockdict():
     iptoRemove = []
-    for ip in server_blockdict.copy():
+    for ip in ip_blockdict.copy():
         time_now = time()
-        if time_now - server_blockdict[ip] > BLOCK_DURATION:
+        if time_now - ip_blockdict[ip] > BLOCK_DURATION:
             iptoRemove.append(ip)
     for ip in iptoRemove:
-        del server_blockdict[ip]
+        del ip_blockdict[ip]
 
 
 serverPort = 12000
@@ -185,9 +190,8 @@ login_dict = {username: [] for username in credentials}
 serverSocket.listen(5)
 print("The server is ready to receive")
 
-server_blockdict = {}
+ip_blockdict = {}
 threads = []
-sockets = []
 timeout_dict = {}
 login_record = {}
 
