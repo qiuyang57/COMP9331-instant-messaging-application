@@ -35,8 +35,10 @@ class ReceiverThread(threading.Thread):
                 print("Error. Invalid user")
             if self.reply == "blockself":
                 print("Error. Cannot block self")
-            if self.reply == "unblockerror":
-                print()
+            if self.reply == "partialbroadcast":
+                print("Your message could not be delivered to some recipients")
+            if self.reply == "beblocked":
+                print("Your message could not be delivered as the recipient has blocked you")
         if len(reply_list)>1:
             if reply_list[0] == "online":
                 print(reply_list[1]+" logged in")

@@ -97,16 +97,19 @@ class ClientThread(threading.Thread):
 
     def command_parse_and_send(self):
         message_list = self.message.split()
+
         if len(message_list) == 1:
             if self.message == "logout":
                 self.sock.send("logout".encode())
                 self.exit_enable()
+
             if self.message == "whoelse":
                 reply = "whoelse"
                 for thread in threads:
                     if thread != self:
                         reply += " " + thread.username
                 self.sock.send(reply.encode())
+
         if len(message_list) > 1:
             if message_list[0] == "whoelsesince":
                 try:
@@ -119,24 +122,35 @@ class ClientThread(threading.Thread):
                     self.sock.send(reply.encode())
                 except ValueError:
                     self.sock.send("invalidtime".encode())
+
             if message_list[0] == "broadcast":
                 reply = "message "+self.username+" "+" ".join(message_list[1:])
+                all_broadcast_flag = True
                 for thread in threads:
-                    if thread != self:
+                    if self.username not in thread.blocked_user:
                         thread.sock.send(reply.encode())
+                    else:
+                        all_broadcast_flag *= False
+                if not all_broadcast_flag:
+                    self.sock.send("partialbroadcast".encode())
+
             if message_list[0] == "message":
                 name_to_send = message_list[1]
                 if name_to_send in login_dict:
                     sentence = " ".join(message_list[2:])
                     reply = "message " + self.username + " " + sentence
-                    if isinstance(login_dict[name_to_send], threading.Thread): # Target online case
+                    if isinstance(login_dict[name_to_send], threading.Thread):  # Target online case
                         thread = login_dict[name_to_send]
-                        thread.sock.send(reply.encode())
+                        if self.username not in thread.blocked_user:
+                            thread.sock.send(reply.encode())
+                        else:
+                            self.sock.send("beblocked".encode())
                     else:
                         login_dict[name_to_send].append(reply)
-                        self.sock.send(("store "+name_to_send).encode())
+                        self.sock.send(("store " + name_to_send).encode())
                 else:
                     self.sock.send("inviliduser".encode())
+
             if message_list[0] == "block":
                 user_to_block = message_list[1]
                 if user_to_block in login_dict:
@@ -148,6 +162,7 @@ class ClientThread(threading.Thread):
                             self.sock.send("blockself".encode())
                 else:
                     self.sock.send("inviliduser".encode())
+
             if message_list[0] == "unblock":
                 user_to_unblock = message_list[1]
                 if user_to_unblock not in self.blocked_user:
