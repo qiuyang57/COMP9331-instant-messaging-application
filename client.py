@@ -33,6 +33,10 @@ class ReceiverThread(threading.Thread):
                 print("Error. Invalid time")
             if self.reply == "inviliduser":
                 print("Error. Invalid user")
+            if self.reply == "blockself":
+                print("Error. Cannot block self")
+            if self.reply == "unblockerror":
+                print()
         if len(reply_list)>1:
             if reply_list[0] == "online":
                 print(reply_list[1]+" logged in")
@@ -48,7 +52,13 @@ class ReceiverThread(threading.Thread):
             if reply_list[0] == "message":
                 print("{}: {}".format(reply_list[1], " ".join(reply_list[2:])))
             if reply_list[0] == "store":
-                print("{} is offline now. Your message has been stored.".format(reply_list[1]))
+                print("{} is offline now. Your message has been stored".format(reply_list[1]))
+            if reply_list[0] == "block":
+                print(reply_list[1]+" is blocked")
+            if reply_list[0] == "unblock":
+                print(reply_list[1]+" is unblocked")
+            if reply_list[0] == "unblockerror":
+                print("Error. {} was not blocked".format(reply_list[1]))
 
 
     def run(self):

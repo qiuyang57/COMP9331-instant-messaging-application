@@ -49,9 +49,9 @@ class ClientThread(threading.Thread):
         for key in login_dict:
             thread = login_dict[key]
             if isinstance(thread, threading.Thread):
-                print(self.username)
-                reply = "online " + self.username
-                thread.sock.send(reply.encode())
+                if key not in self.blocked_user:
+                    reply = "online " + self.username
+                    thread.sock.send(reply.encode())
         # print(login_dict[self.username])
 
     def send_stored_message(self):
@@ -107,7 +107,6 @@ class ClientThread(threading.Thread):
                     if thread != self:
                         reply += " " + thread.username
                 self.sock.send(reply.encode())
-
         if len(message_list) > 1:
             if message_list[0] == "whoelsesince":
                 try:
@@ -138,6 +137,24 @@ class ClientThread(threading.Thread):
                         self.sock.send(("store "+name_to_send).encode())
                 else:
                     self.sock.send("inviliduser".encode())
+            if message_list[0] == "block":
+                user_to_block = message_list[1]
+                if user_to_block in login_dict:
+                    reply = self.message
+                    if isinstance(login_dict[user_to_block], threading.Thread): # Target online case
+                        if user_to_block != self.username:
+                            self.blocked_user.append(user_to_block)
+                        else:
+                            self.sock.send("blockself".encode())
+                else:
+                    self.sock.send("inviliduser".encode())
+            if message_list[0] == "unblock":
+                user_to_unblock = message_list[1]
+                if user_to_unblock not in self.blocked_user:
+                    self.sock.send("unblockerror {}".format(user_to_unblock).encode())
+                else:
+                    self.blocked_user.remove(user_to_unblock)
+                    self.sock.send("unblock {}".format(user_to_unblock).encode())
 
 
     def thread_exit(self):
@@ -145,8 +162,9 @@ class ClientThread(threading.Thread):
         threads.remove(self)
         self.sock = None
         for thread in threads:
-            reply = "offline " + self.username
-            thread.sock.send(reply.encode())
+            if thread.username not in self.blocked_user:
+                reply = "offline " + self.username
+                thread.sock.send(reply.encode())
 
     def run(self):
         self.timeout_reset()
