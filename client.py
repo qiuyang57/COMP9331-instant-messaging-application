@@ -16,14 +16,21 @@ class ReceiverThread(threading.Thread):
         threading.Thread.__init__(self)
         self.sock = sock
         self.reply = None
+        self.exit = False
 
     def run(self):
-        while True:
+        while not self.exit:
             self.reply = self.sock.recv(1024).decode()
+            print(self.reply)
             if self.reply == "timeout":
                 print("Times out! Exit the program.")
-                sys.exit()
-            print(self.reply)
+                # self.sock.close()
+                exit_flag.append(1)
+                self.exit = True
+            if self.reply == "logout":
+                exit_flag.append(1)
+                self.exit = True
+
 
 
 def login():
@@ -46,6 +53,7 @@ def login():
             login_flag = False
         if answer_login == "timeout":
             print("Times out! Exit the program.")
+            clientSocket.close()
             sys.exit()
         if answer_login == "block":
             print("Too many tries! You have been blocked for a while.")
@@ -60,15 +68,11 @@ def login():
 login()
 thread_rec = ReceiverThread(clientSocket)
 thread_rec.start()
-while True:
+exit_flag = []
+while not exit_flag:
     message = input()
-
     if threading.active_count()>1:
         clientSocket.send(message.encode())
-    else:
-        sys.exit()
-    if message == "logout":
-        sys.exit()
-
+clientSocket.close()
 
 

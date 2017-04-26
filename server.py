@@ -40,16 +40,15 @@ class ClientThread(threading.Thread):
 
     def exit_enable(self):
         self.exit = True
-        threads.remove(self)
-        login_dict[self.username] = None
 
-    def init_after_login(self):
+    def init_after_login(self, word):
         self.login_require_flag = False
         self.username = word[1]
         login_dict[self.username] = self
         login_record[self.username] = time()
         for thread in threads:
             if thread != self:
+                print(self.username)
                 reply = "online " + self.username
                 thread.replies.append(reply.encode())
 
@@ -70,14 +69,14 @@ class ClientThread(threading.Thread):
                 print("connection lost")
                 self.exit_enable()
                 break
-            print(word[1], credentials.keys())
+            # print(word[1], credentials.keys())
             if word[1] in credentials.keys():
                 if credentials[word[1]] == word[2]:
                     if login_dict[word[1]]:
                         reply = "occupied"
                     else:
                         reply = "welcome"
-                        self.init_after_login()
+                        self.init_after_login(word)
             self.replies.append(reply.encode())
             self.login_remain_times -= 1
 
@@ -85,6 +84,7 @@ class ClientThread(threading.Thread):
         message_list = self.message.split()
         if len(message_list) == 1:
             if self.message == "logout":
+                self.sock.send("logout".encode())
                 self.exit_enable()
             if self.message == "whoelse":
                 reply = "whoelse"
@@ -93,7 +93,7 @@ class ClientThread(threading.Thread):
                         reply += " " + thread.username
                 self.replies.append(reply.encode())
 
-        else:
+        if len(message_list) > 1:
             if message_list[0] == "whoelsesince":
                 time_since = message_list[1]
                 for username in login_record:
@@ -109,40 +109,46 @@ class ClientThread(threading.Thread):
                         thread.replies.append(reply.encode())
         self.replies.append(self.message.encode())
 
+    def thread_exit(self):
+        login_dict[self.username] = None
+        threads.remove(self)
+        self.sock = None
+        for thread in threads:
+            reply = "offline " + self.username
+            thread.replies.append(reply.encode())
+
     def run(self):
         self.timeout_reset()
         self.login()
         while not self.exit:
             self.message = self.sock.recv(1024).decode()
-            if self.message != "":
-                self.timeout_reset()
+            print(self.message)
+            self.timeout_reset()
             self.command_parse()
         if (not self.login_require_flag) and self.exit:
-            for thread in threads:
-                if thread != self:
-                    reply = "offline " + self.username
-                    thread.replies.append(reply.encode())
+            self.thread_exit()
+
 
 
 def check_timeout():
     threadtoClose = []
     # print(timeout_dict)
-    for thread in timeout_dict:
+    for thread in timeout_dict.copy():
         time_now = time()
         if time_now - timeout_dict[thread] > TIMEOUT:
-            thread.sock.send("timeout".encode())
-            threadtoClose.append(thread)
+            if thread.sock is not None:
+                thread.sock.send("timeout".encode())
+                threadtoClose.append(thread)
     # print(threadtoClose)
     for thread in threadtoClose:
         del timeout_dict[thread]
         thread.exit = True
-        threads.remove(thread)
-        login_dict[thread.username] = None
+
 
 
 def update_serverblockdict():
     iptoRemove = []
-    for ip in server_blockdict:
+    for ip in server_blockdict.copy():
         time_now = time()
         if time_now - server_blockdict[ip] > BLOCK_DURATION:
             iptoRemove.append(ip)
@@ -180,8 +186,9 @@ while True:
         prev_time = cur_time
     for thread in threads:
         if len(thread.replies):
-            thread.sock.send(thread.replies.pop(0))
-            # print(threading.enumerate())
+            if thread.sock is not None:
+                thread.sock.send(thread.replies.pop(0))
+    # print(threading.enumerate())
 connectionSocket.close()
 for t in threads:
     t.join()
