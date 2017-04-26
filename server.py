@@ -2,7 +2,7 @@ from time import time
 from socket import *
 import threading
 
-TIMEOUT = 100
+TIMEOUT = 10
 BLOCK_DURATION = 15
 
 
@@ -43,18 +43,23 @@ class ClientThread(threading.Thread):
     def init_after_login(self, word):
         self.login_require_flag = False
         self.username = word[1]
-        login_dict[self.username] = self
         login_record[self.username] = time()
-        for thread in threads:
-            if thread != self:
+        for key in login_dict:
+            thread = login_dict[key]
+            if isinstance(thread, threading.Thread):
                 print(self.username)
                 reply = "online " + self.username
-                thread.replies.append(reply.encode())
+                thread.sock.send(reply.encode())
+        # print(login_dict[self.username])
+            else:
+                for reply in login_dict[self.username]:
+                    self.sock.send(reply.encode())
+        login_dict[self.username] = self
 
     def login(self):
         while self.login_require_flag:
             self.message = self.sock.recv(1024).decode()
-            if self.sock in timeout_dict:
+            if self in timeout_dict:
                 self.timeout_reset()
             word = self.message.split()
             print(word)
@@ -94,27 +99,42 @@ class ClientThread(threading.Thread):
 
         if len(message_list) > 1:
             if message_list[0] == "whoelsesince":
-                time_since = message_list[1]
-                for username in login_record:
-                    reply = "whoelsesince"
-                    if not username == self.username:
-                        if time() - login_record[username] <= time_since:
-                            reply += " " + username
-                            self.sock.send(reply.encode())
+                try:
+                    time_since = float(message_list[1])
+                    reply = "whoelsesince "+message_list[1]
+                    for username in login_record:
+                        if not username == self.username:
+                            if time() - login_record[username] <= time_since:
+                                reply += " " + username
+                    self.sock.send(reply.encode())
+                except ValueError:
+                    self.sock.send("invalidtime".encode())
             if message_list[0] == "broadcast":
-                reply = " ".join(message_list[1:])
+                reply = " ".join(message_list)
                 for thread in threads:
                     if thread != self:
                         thread.sock.send(reply.encode())
-        self.sock.send(self.message.encode())
+            if message_list[0] == "message":
+                name_to_send = message_list[1]
+                if name_to_send in login_dict:
+                    sentence = " ".join(message_list[2:])
+                    reply = "message " + self.username + " " + sentence
+                    if isinstance(login_dict[name_to_send], threading.Thread): # Target online case
+                        thread = login_dict[name_to_send]
+                        thread.sock.send(reply.encode())
+                    else:
+                        login_dict[name_to_send].append(reply)
+                        self.sock.send(("store "+name_to_send).encode())
+                else:
+                    self.sock.send("inviliduser".encode())
 
     def thread_exit(self):
-        login_dict[self.username] = None
+        login_dict[self.username] = []
         threads.remove(self)
         self.sock = None
         for thread in threads:
             reply = "offline " + self.username
-            thread.replies.append(reply.encode())
+            thread.sock.send(reply.encode())
 
     def run(self):
         self.timeout_reset()
@@ -126,8 +146,6 @@ class ClientThread(threading.Thread):
             self.command_parse_and_send()
         if (not self.login_require_flag) and self.exit:
             self.thread_exit()
-
-
 
 def check_timeout():
     threadtoClose = []
@@ -163,7 +181,7 @@ with open("credentials.txt") as file:
     for line in file:
         word = line.split()
         credentials[word[0]] = word[1]
-login_dict = {username: None for username in credentials}
+login_dict = {username: [] for username in credentials}
 serverSocket.listen(5)
 print("The server is ready to receive")
 

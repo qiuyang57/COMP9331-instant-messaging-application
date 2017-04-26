@@ -18,10 +18,9 @@ class ReceiverThread(threading.Thread):
         self.reply = None
         self.exit = False
 
-    def run(self):
-        while not self.exit:
-            self.reply = self.sock.recv(1024).decode()
-            print(self.reply)
+    def message_parse(self):
+        reply_list = self.reply.split()
+        if len(reply_list)==1:
             if self.reply == "timeout":
                 print("Times out! Exit the program.")
                 # self.sock.close()
@@ -30,8 +29,29 @@ class ReceiverThread(threading.Thread):
             if self.reply == "logout":
                 exit_flag.append(1)
                 self.exit = True
+            if self.reply == "invalidtime":
+                print("The time you request is not valid.")
+            if self.reply == "inviliduser":
+                print("The user you message is not valid.")
+        if len(reply_list)>1:
+            if reply_list[0] == "whoelse":
+                print("Current online user:")
+                for user in reply_list[1:]:
+                    print(user)
+            if reply_list[0] == "whoelsesince":
+                print("User logged in within "+reply_list[1]+" seconds:")
+                for user in reply_list[2:]:
+                    print(user)
+            if reply_list[0] == "message":
+                print("{}: {}".format(reply_list[1], " ".join(reply_list[2:])))
 
-
+    def run(self):
+        while not self.exit:
+            self.reply = self.sock.recv(1024).decode()
+            print(self.reply)
+            self.message_parse()
+        if self.exit:
+            clientSocket.close()
 
 def login():
     login_flag = True
@@ -73,6 +93,6 @@ while not exit_flag:
     message = input()
     if threading.active_count()>1:
         clientSocket.send(message.encode())
-clientSocket.close()
+
 
 
