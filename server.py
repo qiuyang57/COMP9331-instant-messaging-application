@@ -32,7 +32,6 @@ class ClientThread(threading.Thread):
         self.message = None
         self.addr = addr
         self.username = None
-        self.replies = []
         self.exit = False
 
     def timeout_reset(self):
@@ -77,10 +76,10 @@ class ClientThread(threading.Thread):
                     else:
                         reply = "welcome"
                         self.init_after_login(word)
-            self.replies.append(reply.encode())
+            self.sock.send(reply.encode())
             self.login_remain_times -= 1
 
-    def command_parse(self):
+    def command_parse_and_send(self):
         message_list = self.message.split()
         if len(message_list) == 1:
             if self.message == "logout":
@@ -91,7 +90,7 @@ class ClientThread(threading.Thread):
                 for thread in threads:
                     if thread != self:
                         reply += " " + thread.username
-                self.replies.append(reply.encode())
+                self.sock.send(reply.encode())
 
         if len(message_list) > 1:
             if message_list[0] == "whoelsesince":
@@ -101,13 +100,13 @@ class ClientThread(threading.Thread):
                     if not username == self.username:
                         if time() - login_record[username] <= time_since:
                             reply += " " + username
-                        self.replies.append(reply.encode())
+                            self.sock.send(reply.encode())
             if message_list[0] == "broadcast":
                 reply = " ".join(message_list[1:])
                 for thread in threads:
                     if thread != self:
-                        thread.replies.append(reply.encode())
-        self.replies.append(self.message.encode())
+                        thread.sock.send(reply.encode())
+        self.sock.send(self.message.encode())
 
     def thread_exit(self):
         login_dict[self.username] = None
@@ -124,7 +123,7 @@ class ClientThread(threading.Thread):
             self.message = self.sock.recv(1024).decode()
             print(self.message)
             self.timeout_reset()
-            self.command_parse()
+            self.command_parse_and_send()
         if (not self.login_require_flag) and self.exit:
             self.thread_exit()
 
@@ -184,10 +183,6 @@ while True:
     if cur_time - prev_time > 1:
         update_serverblockdict()
         prev_time = cur_time
-    for thread in threads:
-        if len(thread.replies):
-            if thread.sock is not None:
-                thread.sock.send(thread.replies.pop(0))
     # print(threading.enumerate())
 connectionSocket.close()
 for t in threads:
