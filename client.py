@@ -2,8 +2,8 @@ import sys
 import threading
 from socket import *
 
-serverName = '127.0.0.1'
-serverPort = 12000
+serverName = sys.argv[1]
+serverPort = sys.argv[2]
 
 
 
@@ -71,6 +71,7 @@ class ServerReceiverThread(threading.Thread):
             if reply_list[0] == "privateoffline":
                 print("Error. {} is currently offline. Cannot start private".format(reply_list[1]))
             if reply_list[0] == "startprivate":
+                print(self.reply)
                 p2p_sendto_username = reply_list[1]
                 p2p_sendto_addr = eval(reply_list[2])
                 p2p_rec_thread = P2PReceiverThread(p2p_sendto_username,p2p_sendto_addr,None)
@@ -128,7 +129,6 @@ class P2PConnectionThread(threading.Thread):
     def run(self):
         while not self.exit:
             connectionSocket, addr = self.sock.accept()
-            print(connectionSocket.getsockname())
             newthread = P2PReceiverThread(None, addr, connectionSocket)
             newthread.start()
             p2p_rec_threads.append(newthread)
@@ -151,9 +151,9 @@ def login():
 
         clientSocket.send(('login ' + username + ' ' + password).encode())
         answer_login = clientSocket.recv(1024).decode()
-        print(answer_login)
         if answer_login == "welcome":
             clientSocket.send("p2p {}".format(p2pPort).encode())
+            print("Welcome to the greatest messaging application ever!")
             login_flag = False
         if answer_login == "timeout":
             print("Times out! Exit the program.")
@@ -204,8 +204,14 @@ while not exit_flag:
                 thread=p2p_connected_user[stopprivate_username]
                 thread.sock.send("stopprivate".encode())
                 thread.exit = True
+                print("Private messaging to {} stopped".format(stopprivate_username))
             else:
                 print("Error. Not exist an active p2p messaging session with {}".format(stopprivate_username))
+        elif message_list[0]== "startprivate":
+            if message_list[1] in p2p_connected_user:
+                print("Error. Private connection already exits")
+            else:
+                clientSocket.send(message.encode())
         else:
             if isinstance(thread_server_rec, threading.Thread):
                 clientSocket.send(message.encode())

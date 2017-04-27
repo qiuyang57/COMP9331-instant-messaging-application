@@ -2,8 +2,10 @@ from time import time
 from socket import *
 import threading
 
-TIMEOUT = 90
-BLOCK_DURATION = 15
+serverPort = sys.argv[1]
+BLOCK_DURATION = sys.argv[2]
+TIMEOUT = sys.argv[3]
+
 
 
 class ConnectionThread(threading.Thread):
@@ -13,8 +15,6 @@ class ConnectionThread(threading.Thread):
     def run(self):
         while True:
             connectionSocket, addr = serverSocket.accept()
-            print(connectionSocket.getsockname())
-            print(addr)
             if addr[0] not in ip_blockdict:
                 newthread = ClientThread(connectionSocket, addr)
                 newthread.start()
@@ -54,7 +54,6 @@ class ClientThread(threading.Thread):
                 if key not in self.blocked_user:
                     reply = "online " + self.username
                     thread.sock.send(reply.encode())
-        # print(login_dict[self.username])
 
     def send_stored_message(self):
         for reply in login_dict[self.username]:
@@ -67,24 +66,19 @@ class ClientThread(threading.Thread):
             username_flag = False
             self.timeout_reset()
             word = self.message.split()
-            print(word)
             reply = "false"
             if self.login_remain_times == 0:
                 reply = "block"
                 ip_blockdict[self.addr[0]] = time()
                 if username_flag:
                     username_blockdict[word[1]] = time()
-                print(ip_blockdict)
                 self.exit_enable()
             else:
                 if self.message == "":
-                    print("connection lost")
                     self.exit_enable()
                     break
-                # print(word[1], credentials.keys())
                 if word[1] in credentials.keys():
                     if credentials[word[1]] == word[2]:
-                        print(login_dict)
                         if isinstance(login_dict[word[1]],threading.Thread):
                             reply = "occupied"
                         else:
@@ -108,7 +102,6 @@ class ClientThread(threading.Thread):
 
             elif self.message == "whoelse":
                 reply = "whoelse"
-                print(threads)
                 for thread in threads:
                     if thread != self:
                         reply += " " + thread.username
@@ -162,9 +155,9 @@ class ClientThread(threading.Thread):
             elif message_list[0] == "block":
                 user_to_block = message_list[1]
                 if user_to_block in login_dict:
-                    reply = self.message
                     if user_to_block != self.username:
                         self.blocked_user.append(user_to_block)
+                        self.sock.send("block {}".format(user_to_block).encode())
                     else:
                         self.sock.send("blockself".encode())
                 else:
@@ -220,7 +213,6 @@ class ClientThread(threading.Thread):
             self.send_stored_message()
             while not self.exit:
                 self.message = self.sock.recv(1024).decode()
-                print(self.message)
                 self.timeout_reset()
                 self.command_parse_and_send()
             if self.exit:
@@ -228,14 +220,12 @@ class ClientThread(threading.Thread):
 
 def check_timeout():
     threadtoClose = []
-    # print(timeout_dict)
     for thread in timeout_dict.copy():
         time_now = time()
         if time_now - timeout_dict[thread] > TIMEOUT:
             if thread.sock is not None:
                 thread.sock.send("timeout".encode())
                 threadtoClose.append(thread)
-    # print(threadtoClose)
     for thread in threadtoClose:
         del timeout_dict[thread]
         thread.exit = True
@@ -260,7 +250,7 @@ def update_ipblockdict():
         del ip_blockdict[ip]
 
 
-serverPort = 12000
+
 serverSocket = socket(AF_INET, SOCK_STREAM)
 serverSocket.bind(('', serverPort))
 credentials = {}
@@ -282,14 +272,12 @@ con_thread = ConnectionThread()
 con_thread.start()
 prev_time = time()
 while True:
-    # print(sockets)
     check_timeout()
     cur_time = time()
     if cur_time - prev_time > 1:
         update_ipblockdict()
         update_usernameblockdict()
         prev_time = cur_time
-    # print(threading.enumerate())
 connectionSocket.close()
 for t in threads:
     t.join()
