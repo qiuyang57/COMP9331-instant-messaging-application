@@ -2,7 +2,7 @@ from time import time
 from socket import *
 import threading
 
-TIMEOUT = 1000
+TIMEOUT = 90
 BLOCK_DURATION = 15
 
 
@@ -28,7 +28,7 @@ class ClientThread(threading.Thread):
         threading.Thread.__init__(self)
         self.sock = sock
         self.login_require_flag = True
-        self.login_remain_times = 2
+        self.login_remain_times = 3
         self.message = None
         self.addr = addr
         self.username = None
@@ -106,20 +106,22 @@ class ClientThread(threading.Thread):
                 self.sock.send("logout".encode())
                 self.exit_enable()
 
-            if self.message == "whoelse":
+            elif self.message == "whoelse":
                 reply = "whoelse"
+                print(threads)
                 for thread in threads:
                     if thread != self:
                         reply += " " + thread.username
                 self.sock.send(reply.encode())
-
-        if len(message_list) > 1:
+            else:
+                self.sock.send("invilidcommand".encode())
+        elif len(message_list) > 1:
             if message_list[0] == "p2p":
                 self.p2paddr = (self.addr[0],int(message_list[1]))
-            if message_list[0] == "whoelsesince":
+            elif message_list[0] == "whoelsesince":
                 try:
                     time_since = float(message_list[1])
-                    reply = "whoelsesince "+message_list[1]
+                    reply = "whoelsesince"
                     for username in login_record:
                         if not username == self.username:
                             if time() - login_record[username] <= time_since:
@@ -128,7 +130,7 @@ class ClientThread(threading.Thread):
                 except ValueError:
                     self.sock.send("invalidtime".encode())
 
-            if message_list[0] == "broadcast":
+            elif message_list[0] == "broadcast":
                 reply = "message "+self.username+" "+" ".join(message_list[1:])
                 all_broadcast_flag = True
                 for thread in threads:
@@ -140,7 +142,7 @@ class ClientThread(threading.Thread):
                 if not all_broadcast_flag:
                     self.sock.send("partialbroadcast".encode())
 
-            if message_list[0] == "message":
+            elif message_list[0] == "message":
                 name_to_send = message_list[1]
                 if name_to_send in login_dict:
                     sentence = " ".join(message_list[2:])
@@ -157,7 +159,7 @@ class ClientThread(threading.Thread):
                 else:
                     self.sock.send("inviliduser".encode())
 
-            if message_list[0] == "block":
+            elif message_list[0] == "block":
                 user_to_block = message_list[1]
                 if user_to_block in login_dict:
                     reply = self.message
@@ -168,7 +170,7 @@ class ClientThread(threading.Thread):
                 else:
                     self.sock.send("inviliduser".encode())
 
-            if message_list[0] == "unblock":
+            elif message_list[0] == "unblock":
                 user_to_unblock = message_list[1]
                 if user_to_unblock not in self.blocked_user:
                     if user_to_unblock == self.username:
@@ -181,7 +183,7 @@ class ClientThread(threading.Thread):
                     self.blocked_user.remove(user_to_unblock)
                     self.sock.send("unblock {}".format(user_to_unblock).encode())
 
-            if message_list[0] == "startprivate":
+            elif message_list[0] == "startprivate":
                 p2p_username = message_list[1]
                 if p2p_username in login_dict:
                     if isinstance(login_dict[p2p_username], threading.Thread):
@@ -198,6 +200,8 @@ class ClientThread(threading.Thread):
                         self.sock.send("privateoffline {}".format(p2p_username).encode())
                 else:
                     self.sock.send("inviliduser".encode())
+            else:
+                self.sock.send("invilidcommand".encode())
 
     def thread_exit(self):
         login_dict[self.username] = []
@@ -235,6 +239,7 @@ def check_timeout():
     for thread in threadtoClose:
         del timeout_dict[thread]
         thread.exit = True
+
 
 def update_usernameblockdict():
     usernametoRemove = []

@@ -25,9 +25,9 @@ class ServerReceiverThread(threading.Thread):
         if len(reply_list)==1:
             if self.reply == "timeout":
                 print("Times out! Exit the program.")
-                # self.sock.close()
                 exit_flag.append(1)
                 self.exit = True
+
             if self.reply == "logout":
                 exit_flag.append(1)
                 self.exit = True
@@ -45,6 +45,8 @@ class ServerReceiverThread(threading.Thread):
                 print("Your message could not be delivered as the recipient has blocked you")
             if self.reply == "privateself":
                 print("Error. Cannot private self")
+            if self.reply == "invilidcommand":
+                print("Error. Invilid command")
         if len(reply_list)>1:
             if reply_list[0] == "online":
                 print(reply_list[1]+" logged in")
@@ -54,7 +56,7 @@ class ServerReceiverThread(threading.Thread):
                 for user in reply_list[1:]:
                     print(user)
             if reply_list[0] == "whoelsesince":
-                for user in reply_list[2:]:
+                for user in reply_list[1:]:
                     print(user)
             if reply_list[0] == "message":
                 print("{}: {}".format(reply_list[1], " ".join(reply_list[2:])))
@@ -77,15 +79,11 @@ class ServerReceiverThread(threading.Thread):
                 p2p_rec_threads.append(p2p_rec_thread)
                 p2p_connected_user[p2p_sendto_username] = p2p_rec_thread
 
-
-
     def run(self):
         while not self.exit:
             self.reply = self.sock.recv(1024).decode()
-            print(self.reply)
             self.message_parse()
         if self.exit:
-            print("close")
             clientSocket.close()
 
 
@@ -101,7 +99,6 @@ class P2PReceiverThread(threading.Thread):
             self.sock.send(("p2pname "+myName).encode())
         else:
             self.sock = sock
-
 
     def run(self):
         while not self.exit:
@@ -126,9 +123,10 @@ class P2PConnectionThread(threading.Thread):
         threading.Thread.__init__(self)
         self.sock = sock
         self.sock.listen(5)
+        self.exit = False
 
     def run(self):
-        while True:
+        while not self.exit:
             connectionSocket, addr = self.sock.accept()
             print(connectionSocket.getsockname())
             newthread = P2PReceiverThread(None, addr, connectionSocket)
@@ -186,6 +184,7 @@ p2p_connected_user = {}
 myName = login()
 thread_server_rec = ServerReceiverThread(clientSocket)
 thread_p2p_connection = P2PConnectionThread(p2pConnectionSocket)
+thread_p2p_connection.daemon = True
 thread_server_rec.start()
 thread_p2p_connection.start()
 exit_flag = []
@@ -206,10 +205,15 @@ while not exit_flag:
                 thread.sock.send("stopprivate".encode())
                 thread.exit = True
             else:
-                print("Error. Private messaging to {} not enabled".format(stopprivate_username))
+                print("Error. Not exist an active p2p messaging session with {}".format(stopprivate_username))
         else:
             if isinstance(thread_server_rec, threading.Thread):
                 clientSocket.send(message.encode())
+for thread in p2p_rec_threads:
+        thread.sock.send("stopprivate".encode())
+        thread.exit = True
+
+
 
 
 
