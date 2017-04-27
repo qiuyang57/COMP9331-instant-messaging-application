@@ -166,7 +166,12 @@ class ClientThread(threading.Thread):
             if message_list[0] == "unblock":
                 user_to_unblock = message_list[1]
                 if user_to_unblock not in self.blocked_user:
-                    self.sock.send("unblockerror {}".format(user_to_unblock).encode())
+                    if user_to_unblock == self.username:
+                        self.sock.send("unblockself".encode())
+                    elif user_to_unblock in login_dict:
+                        self.sock.send("unblockerror {}".format(user_to_unblock).encode())
+                    else:
+                        self.sock.send("inviliduser".encode())
                 else:
                     self.blocked_user.remove(user_to_unblock)
                     self.sock.send("unblock {}".format(user_to_unblock).encode())
