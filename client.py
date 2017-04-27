@@ -3,7 +3,7 @@ import threading
 from socket import *
 
 serverName = sys.argv[1]
-serverPort = sys.argv[2]
+serverPort = int(sys.argv[2])
 
 
 
@@ -164,7 +164,7 @@ def login():
             clientSocket.close()
             sys.exit()
         if answer_login == "blockun":
-            print("Invalid Username. Your account been blocked. Please try again later")
+            print("Your username is blocked due to multiple login failures. Please try again later")
             clientSocket.close()
             sys.exit()
         if answer_login == "blockip":

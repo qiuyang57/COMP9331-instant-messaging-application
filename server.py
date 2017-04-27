@@ -1,10 +1,11 @@
+import sys
 from time import time
 from socket import *
 import threading
 
-serverPort = sys.argv[1]
-BLOCK_DURATION = sys.argv[2]
-TIMEOUT = sys.argv[3]
+serverPort = int(sys.argv[1])
+BLOCK_DURATION = int(sys.argv[2])
+TIMEOUT = int(sys.argv[3])
 
 
 
@@ -28,7 +29,7 @@ class ClientThread(threading.Thread):
         threading.Thread.__init__(self)
         self.sock = sock
         self.login_require_flag = True
-        self.login_remain_times = 3
+        self.login_remain_times = 2
         self.message = None
         self.addr = addr
         self.username = None
@@ -67,28 +68,28 @@ class ClientThread(threading.Thread):
             self.timeout_reset()
             word = self.message.split()
             reply = "false"
+            if self.message == "":
+                self.exit_enable()
+                break
+            elif word[1] in username_blockdict:
+                reply = "blockun"
+            elif word[1] in credentials.keys():
+                if credentials[word[1]] == word[2]:
+                    if isinstance(login_dict[word[1]],threading.Thread):
+                        reply = "occupied"
+                    else:
+                        reply = "welcome"
+                        self.init_after_login(word)
+                        self.login_remain_times+=1
+                else:
+                    reply = "falsep"
+                    username_flag = True
             if self.login_remain_times == 0:
                 reply = "block"
                 ip_blockdict[self.addr[0]] = time()
                 if username_flag:
                     username_blockdict[word[1]] = time()
                 self.exit_enable()
-            else:
-                if self.message == "":
-                    self.exit_enable()
-                    break
-                if word[1] in credentials.keys():
-                    if credentials[word[1]] == word[2]:
-                        if isinstance(login_dict[word[1]],threading.Thread):
-                            reply = "occupied"
-                        else:
-                            reply = "welcome"
-                            self.init_after_login(word)
-                    else:
-                        reply = "falsep"
-                        username_flag = True
-                if word[1] in username_blockdict:
-                    reply = "blockun"
             self.sock.send(reply.encode())
             self.login_remain_times -= 1
 
@@ -99,7 +100,6 @@ class ClientThread(threading.Thread):
             if self.message == "logout":
                 self.sock.send("logout".encode())
                 self.exit_enable()
-
             elif self.message == "whoelse":
                 reply = "whoelse"
                 for thread in threads:
