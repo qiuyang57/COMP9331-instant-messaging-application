@@ -76,24 +76,25 @@ class ClientThread(threading.Thread):
                     username_blockdict[word[1]] = time()
                 print(ip_blockdict)
                 self.exit_enable()
-            if self.message == "":
-                print("connection lost")
-                self.exit_enable()
-                break
-            # print(word[1], credentials.keys())
-            if word[1] in credentials.keys():
-                if credentials[word[1]] == word[2]:
-                    print(login_dict)
-                    if isinstance(login_dict[word[1]],threading.Thread):
-                        reply = "occupied"
+            else:
+                if self.message == "":
+                    print("connection lost")
+                    self.exit_enable()
+                    break
+                # print(word[1], credentials.keys())
+                if word[1] in credentials.keys():
+                    if credentials[word[1]] == word[2]:
+                        print(login_dict)
+                        if isinstance(login_dict[word[1]],threading.Thread):
+                            reply = "occupied"
+                        else:
+                            reply = "welcome"
+                            self.init_after_login(word)
                     else:
-                        reply = "welcome"
-                        self.init_after_login(word)
-                else:
-                    reply = "falsep"
-                    username_flag = True
-            if word[1] in username_blockdict:
-                reply = "blockun"
+                        reply = "falsep"
+                        username_flag = True
+                if word[1] in username_blockdict:
+                    reply = "blockun"
             self.sock.send(reply.encode())
             self.login_remain_times -= 1
 

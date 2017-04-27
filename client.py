@@ -107,16 +107,19 @@ class P2PReceiverThread(threading.Thread):
         while not self.exit:
             reply = self.sock.recv(1024).decode()
             reply_list = reply.split()
-            if reply_list[0]=="p2pname":
-                self.username = reply_list[1]
-            elif reply_list[0]=="private":
-                print("{}(private): {}".format(self.username," ".join(reply_list[1:])))
-            elif reply_list[0]=="stopprivate":
-                print("{} canceled private message with you".format(self.username))
-                self.exit = True
+            if len(reply_list):
+                if reply_list[0]=="p2pname":
+                    self.username = reply_list[1]
+                    p2p_connected_user[self.username] = self
+                elif reply_list[0]=="private":
+                    print("{}(private): {}".format(self.username," ".join(reply_list[1:])))
+                elif reply_list[0]=="stopprivate":
+                    print("{} canceled private message with you".format(self.username))
+                    self.exit = True
         p2p_rec_threads.remove(self)
         del p2p_connected_user[self.username]
         self.sock.close()
+
 
 class P2PConnectionThread(threading.Thread):
     def __init__(self, sock):
