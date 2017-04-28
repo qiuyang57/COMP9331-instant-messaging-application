@@ -123,7 +123,7 @@ class P2PConnectionThread(threading.Thread):
     def __init__(self, sock):
         threading.Thread.__init__(self)
         self.sock = sock
-        self.sock.listen(5)
+        self.sock.listen(10)
         self.exit = False
 
     def run(self):

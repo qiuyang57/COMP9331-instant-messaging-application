@@ -8,7 +8,8 @@ BLOCK_DURATION = int(sys.argv[2])
 TIMEOUT = int(sys.argv[3])
 
 
-
+# The ConnectionThread runs for accepting the connection from clients
+# Create a new thread per new client for receiving the request from client
 class ConnectionThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
@@ -23,7 +24,7 @@ class ConnectionThread(threading.Thread):
             else:
                 connectionSocket.send("blockip".encode())
 
-
+# 
 class ClientThread(threading.Thread):
     def __init__(self, sock, addr):
         threading.Thread.__init__(self)
@@ -259,7 +260,7 @@ with open("credentials.txt") as file:
         word = line.split()
         credentials[word[0]] = word[1]
 login_dict = {username: [] for username in credentials}
-serverSocket.listen(5)
+serverSocket.listen(10)
 print("The server is ready to receive")
 
 ip_blockdict = {}
