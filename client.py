@@ -13,6 +13,8 @@ p2pConnectionSocket = socket(AF_INET, SOCK_STREAM)
 p2pConnectionSocket.bind(('',0))
 p2pPort = p2pConnectionSocket.getsockname()[1]
 
+
+# The thread for receiving from server
 class ServerReceiverThread(threading.Thread):
     def __init__(self, sock):
         threading.Thread.__init__(self)
@@ -88,6 +90,7 @@ class ServerReceiverThread(threading.Thread):
             clientSocket.close()
 
 
+# The thread for receiving from p2p user
 class P2PReceiverThread(threading.Thread):
     def __init__(self, username, addr, sock):
         threading.Thread.__init__(self)
@@ -119,6 +122,7 @@ class P2PReceiverThread(threading.Thread):
         self.sock.close()
 
 
+# The thread for accepting connection from p2p user
 class P2PConnectionThread(threading.Thread):
     def __init__(self, sock):
         threading.Thread.__init__(self)
@@ -133,7 +137,7 @@ class P2PConnectionThread(threading.Thread):
             newthread.start()
             p2p_rec_threads.append(newthread)
 
-
+# login process in main thread
 def login():
     login_flag = True
     username_flag = True
@@ -148,7 +152,6 @@ def login():
             if password != "":
                 break
             print("Empty password. Please try again.")
-
         clientSocket.send(('login ' + username + ' ' + password).encode())
         answer_login = clientSocket.recv(1024).decode()
         if answer_login == "welcome":
@@ -188,6 +191,8 @@ thread_p2p_connection.daemon = True
 thread_server_rec.start()
 thread_p2p_connection.start()
 exit_flag = []
+
+# main loop
 while not exit_flag:
     message = input()
     message_list = message.split()
@@ -215,6 +220,7 @@ while not exit_flag:
         else:
             if isinstance(thread_server_rec, threading.Thread):
                 clientSocket.send(message.encode())
+# release the all the thread and close all the socket
 for thread in p2p_rec_threads:
         thread.sock.send("stopprivate".encode())
         thread.exit = True
